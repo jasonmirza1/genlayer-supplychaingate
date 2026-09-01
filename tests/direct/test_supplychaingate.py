@@ -225,10 +225,12 @@ def test_failed_identity_or_revision_lock_forces_insufficient(field):
     _reset()
     _policy(contract)
     _Nondet.raw[field] = False
-    assert _assess(contract)["decision"] == "INSUFFICIENT_EVIDENCE"
+    result = _assess(contract)
+    assert result["decision"] == "INSUFFICIENT_EVIDENCE"
+    assert result["summary"] == "The immutable SBOM could not be evaluated reliably."
 
 
-@pytest.mark.parametrize("components", [0, -1, "bad", None, True])
+@pytest.mark.parametrize("components", [0, -1, "bad", None, True, 100001])
 def test_missing_or_invalid_component_count_fails_safely(components):
     module = _load()
     contract = _contract(module)
@@ -244,7 +246,9 @@ def test_prohibited_license_and_component_deterministically_block():
     _reset()
     _policy(contract)
     _Nondet.raw["prohibited_license_matches"] = ["AGPL-3.0-only"]
-    assert _assess(contract)["decision"] == "BLOCK"
+    result = _assess(contract)
+    assert result["decision"] == "BLOCK"
+    assert result["summary"] == "The immutable SBOM violates the stored supply-chain policy."
     _reset()
     _Nondet.raw["prohibited_component_matches"] = ["malware-demo@1.0"]
     assert _assess(contract)["decision"] == "BLOCK"
@@ -302,6 +306,27 @@ def test_counts_are_bounded_and_booleans_do_not_become_counts():
     assert contract._safe_count(-5) == 0
     assert contract._safe_count(True) == 0
     assert contract._safe_count("200000") == 100000
+    assert contract._valid_count(True) is False
+    assert contract._valid_count("12") is True
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("critical_vulnerability_count", True),
+        ("missing_hash_count", -1),
+        ("missing_supplier_count", "unknown"),
+        ("sbom_format", "Unknown JSON"),
+        ("sbom_format", ""),
+    ],
+)
+def test_malformed_counts_and_unknown_format_fail_safely(field, value):
+    module = _load()
+    contract = _contract(module)
+    _reset()
+    _policy(contract)
+    _Nondet.raw[field] = value
+    assert _assess(contract)["decision"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_rejects_vague_policy_and_context():

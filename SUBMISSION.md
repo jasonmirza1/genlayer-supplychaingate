@@ -33,6 +33,6 @@ agentic software procurement without relying on a centralized reviewer.
 
 ## Verification
 
-- 35 tests passed (33 direct and 2 GenVM-runtime integration tests)
+- 41 tests passed (39 direct and 2 GenVM-runtime integration tests)
 - GenVM lint and contract validation passed
 - 5 public methods (2 write and 3 view)

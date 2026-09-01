@@ -82,6 +82,15 @@ class SupplyChainGate(gl.Contract):
             return 0
         return max(0, min(number, maximum))
 
+    def _valid_count(self, value, maximum: int = 100000) -> bool:
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int):
+            return 0 <= value <= maximum
+        if isinstance(value, str) and value.isdigit():
+            return int(value) <= maximum
+        return False
+
     def _parse_sbom_url(self, value: str) -> tuple:
         normalized = value.strip()
         prefix = "https://github.com/"
@@ -129,28 +138,51 @@ class SupplyChainGate(gl.Contract):
         prohibited_components = self._string_list(raw.get("prohibited_component_matches", []))
         unresolved = self._string_list(raw.get("unresolved_vulnerabilities", []))
 
-        if quality != "ENOUGH" or not verified or not valid_decision or components == 0:
+        count_values = (
+            raw.get("component_count", 0),
+            raw.get("critical_vulnerability_count", 0),
+            raw.get("missing_hash_count", 0),
+            raw.get("missing_supplier_count", 0),
+        )
+        counts_valid = all(self._valid_count(value) for value in count_values)
+        format_name = sbom_format.lower()
+        format_valid = "cyclonedx" in format_name or "spdx" in format_name
+
+        normalized_reason = ""
+        if (
+            quality != "ENOUGH"
+            or not verified
+            or not valid_decision
+            or not counts_valid
+            or not format_valid
+            or components == 0
+        ):
             decision = "INSUFFICIENT_EVIDENCE"
             quality = "WEAK"
             verified = False
             sbom_format = ""
             components = critical = missing_hashes = missing_suppliers = 0
             licenses, prohibited_components, unresolved = [], [], []
+            normalized_reason = "The immutable SBOM could not be evaluated reliably."
         elif licenses or prohibited_components or critical > int(policy.max_critical_vulnerabilities):
             decision = "BLOCK"
+            normalized_reason = "The immutable SBOM violates the stored supply-chain policy."
         elif decision == "ALLOW" and (
             unresolved
             or (policy.require_hashes and missing_hashes > 0)
             or (policy.require_suppliers and missing_suppliers > 0)
         ):
             decision = "REVIEW"
+            normalized_reason = "The immutable SBOM requires human review for metadata or vulnerability gaps."
 
         default_summary = (
             "The immutable SBOM could not be evaluated reliably."
             if decision == "INSUFFICIENT_EVIDENCE"
             else "The immutable SBOM was evaluated against the stored supply-chain policy."
         )
-        summary = self._clean(str(raw.get("summary", default_summary)), 600)
+        summary = self._clean(
+            normalized_reason or str(raw.get("summary", default_summary)), 600
+        )
         if not summary:
             summary = default_summary
         return {
