@@ -59,6 +59,11 @@ class SupplyChainGate(gl.Contract):
     def _clean(self, value: str, maximum: int) -> str:
         return " ".join(value.strip().split())[0:maximum]
 
+    def _bounded_input(self, value: str, maximum: int, label: str) -> str:
+        if len(value) > maximum:
+            raise gl.vm.UserError(label + " exceeds the maximum length")
+        return " ".join(value.strip().split())
+
     def _string_list(self, value, limit: int = 10) -> list:
         source = value if isinstance(value, list) else ([value] if value else [])
         result = []
@@ -106,6 +111,10 @@ class SupplyChainGate(gl.Contract):
         if (
             not owner
             or not repository
+            or owner in (".", "..")
+            or repository in (".", "..")
+            or len(owner) > 100
+            or len(repository) > 100
             or any(not all(char in allowed for char in item) for item in (owner, repository))
             or len(revision) != 40
             or not all(char in "0123456789abcdef" for char in revision)
@@ -328,10 +337,10 @@ differences are acceptable; matching JSON shape alone is not agreement.
         require_hashes: bool,
         require_suppliers: bool,
     ) -> dict:
-        clean_name = self._clean(name, 100)
-        allowed = self._clean(allowed_licenses, 700)
-        prohibited = self._clean(prohibited_licenses, 700)
-        components = self._clean(prohibited_components, 700)
+        clean_name = self._bounded_input(name, 100, "Name")
+        allowed = self._bounded_input(allowed_licenses, 700, "Allowed licenses")
+        prohibited = self._bounded_input(prohibited_licenses, 700, "Prohibited licenses")
+        components = self._bounded_input(prohibited_components, 700, "Prohibited components")
         if len(clean_name) < 3 or min(len(allowed), len(prohibited), len(components)) < 10:
             raise gl.vm.UserError("Policy fields must be specific")
         if int(max_critical_vulnerabilities) > 1000:
@@ -358,7 +367,7 @@ differences are acceptable; matching JSON shape alone is not agreement.
         if policy_id not in self.policies:
             raise gl.vm.UserError("Policy not found")
         canonical, raw_url, revision = self._parse_sbom_url(sbom_url)
-        context = self._clean(project_context, 700)
+        context = self._bounded_input(project_context, 700, "Project context")
         if len(context) < 20:
             raise gl.vm.UserError("Project context must be specific")
         analysis = self._evaluate(self.policies[policy_id], raw_url, revision, context)

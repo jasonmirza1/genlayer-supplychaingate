@@ -181,6 +181,8 @@ def test_creates_reusable_supply_chain_policy():
         "https://example.com/o/r/blob/" + SHA + "/sbom.json",
         "https://github.com/o/r/blob/main/sbom.json",
         "https://github.com/o/r/blob/" + SHA + "/../sbom.json",
+        "https://github.com/../r/blob/" + SHA + "/sbom.json",
+        "https://github.com/o/../blob/" + SHA + "/sbom.json",
         "https://github.com/o/r/blob/" + SHA + "/sbom.txt",
         SBOM_URL + "?raw=1",
     ],
@@ -339,6 +341,31 @@ def test_rejects_vague_policy_and_context():
     _policy(contract)
     with pytest.raises(Exception, match="specific"):
         _assess(contract, project_context="prod")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("name", "n" * 101),
+        ("allowed_licenses", "a" * 701),
+        ("prohibited_licenses", "p" * 701),
+        ("prohibited_components", "c" * 701),
+    ],
+)
+def test_rejects_oversized_policy_inputs(field, value):
+    module = _load()
+    contract = _contract(module)
+    with pytest.raises(Exception, match="maximum length"):
+        _policy(contract, **{field: value})
+
+
+def test_rejects_oversized_project_context():
+    module = _load()
+    contract = _contract(module)
+    _reset()
+    _policy(contract)
+    with pytest.raises(Exception, match="maximum length"):
+        _assess(contract, project_context="x" * 701)
 
 
 def test_unknown_policy_and_unknown_decision_fail_safely():
