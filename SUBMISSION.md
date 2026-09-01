@@ -25,11 +25,11 @@ agentic software procurement without relying on a centralized reviewer.
 
 ## Evidence
 
-- GitHub repository: pending
-- Immutable contract source: pending
-- Tests: pending
-- Bradbury contract: pending
-- Deployment transaction: pending
+- GitHub repository: https://github.com/jasonmirza1/genlayer-supplychaingate
+- Immutable contract source: https://github.com/jasonmirza1/genlayer-supplychaingate/blob/5a088c748d9c95a86a137252f87bc49e0e8206f9/contracts/supplychaingate.py
+- Tests: https://github.com/jasonmirza1/genlayer-supplychaingate/tree/5a088c748d9c95a86a137252f87bc49e0e8206f9/tests
+- Bradbury contract: https://explorer-bradbury.genlayer.com/address/0x1F828e15bF8C1702fD0f43830C75b98cC06f4fDA
+- Deployment transaction: https://explorer-bradbury.genlayer.com/tx/0x105b2fe8afe63559fd77fcb723f876e3b46d94c22ad3abbba6ea6b3e989393f0
 
 ## Verification
 
